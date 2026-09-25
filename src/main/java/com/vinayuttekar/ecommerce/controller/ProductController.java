@@ -143,7 +143,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/admin/products/{productId}")
-    public ResponseEntity<ApiResponse<ProductResponse>> deleteProduct(@PathVariable Long productId){
+    public ResponseEntity<ApiResponse<ProductResponse>> deleteProduct(@PathVariable Long productId) throws IOException {
         ProductResponse productResponse = productService.deleteProduct(productId);
 
         ApiResponse<ProductResponse> response= new ApiResponse<>(
