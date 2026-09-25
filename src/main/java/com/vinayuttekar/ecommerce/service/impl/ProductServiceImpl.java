@@ -44,25 +44,89 @@ public class ProductServiceImpl implements ProductService {
     @Value("${project.image:images}")
     private String path;
 
+    @Value("${image.base.url}")
+    private String imageBaseUrl;
+
     @Override
-    public ProductResponse addProduct(ProductRequest request, Long categoryId) {
+    public ProductResponse addProduct(
+            ProductRequest request,
+            Long categoryId,
+            MultipartFile image
+    ) throws IOException {
+
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category", "id", categoryId));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Category",
+                                "id",
+                                categoryId
+                        )
+                );
+
         String name = request.getProductName().trim();
+
         if (productRepository.existsByProductNameIgnoreCase(name)) {
-            throw new ResourceAlreadyExistsException("Product", "name", name);
+            throw new ResourceAlreadyExistsException(
+                    "Product",
+                    "name",
+                    name
+            );
         }
-        Product product = modelMapper.map(request, Product.class);
+
+        Product product = modelMapper.map(
+                request,
+                Product.class
+        );
+
         product.setProductName(name);
         product.setCategory(category);
-        product.setSpecialPrice(calculateSpecialPrice(product.getPrice(), product.getDiscount()));
-        return modelMapper.map(productRepository.save(product), ProductResponse.class);
+
+        product.setSpecialPrice(
+                calculateSpecialPrice(
+                        product.getPrice(),
+                        product.getDiscount()
+                )
+        );
+
+        if (image == null || image.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Product image is required"
+            );
+        }
+
+        String fileName =
+                fileService.uploadImage(path, image);
+
+        product.setImage(fileName);
+
+        Product savedProduct =
+                productRepository.save(product);
+
+        return mapToProductResponse(savedProduct);
     }
 
     @Override
     public ProductPageResponse getAllProducts(int page, int size, String sortBy, String sortDir) {
         Pageable pageable = PageRequest.of(validatePage(page), validateSize(size), buildSort(sortBy, sortDir));
         return getProductPageResponse(productRepository.findAll(pageable));
+    }
+
+    private String constructImageUrl(String imageName){
+        return imageBaseUrl.endsWith("/") ? imageBaseUrl + imageName : imageBaseUrl + "/" + imageName;
+    }
+
+    private ProductResponse mapToProductResponse(Product product) {
+
+        ProductResponse response =
+                modelMapper.map(product, ProductResponse.class);
+
+        if (product.getImage() != null) {
+            response.setImage(
+                    constructImageUrl(product.getImage())
+            );
+        }
+
+        return response;
     }
 
     @Override
@@ -94,11 +158,11 @@ public class ProductServiceImpl implements ProductService {
         product.setDiscount(request.getDiscount());
         product.setPrice(request.getPrice());
         product.setSpecialPrice(calculateSpecialPrice(request.getPrice(), request.getDiscount()));
-        return modelMapper.map(productRepository.save(product), ProductResponse.class);
+        return mapToProductResponse(productRepository.save(product));
     }
 
     @Override
-    public ProductResponse deleteProduct(Long productId) {
+    public ProductResponse deleteProduct(Long productId) throws IOException {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "id", productId));
         if (orderItemRepository.existsByProductProductId(productId)) {
@@ -115,7 +179,12 @@ public class ProductServiceImpl implements ProductService {
             }
             cartItemRepository.delete(item);
         }
-        ProductResponse response = modelMapper.map(product, ProductResponse.class);
+        ProductResponse response =
+                mapToProductResponse(product);
+
+        if (product.getImage() != null) {
+            fileService.deleteImage(path, product.getImage());
+        }
         productRepository.delete(product);
         return response;
     }
@@ -126,7 +195,7 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "id", productId));
         String fileName = fileService.uploadImage(path, image);
         product.setImage(fileName);
-        return modelMapper.map(productRepository.save(product), ProductResponse.class);
+        return mapToProductResponse(productRepository.save(product));
     }
 
     private Double calculateSpecialPrice(Double price, Double discount) {
@@ -150,13 +219,22 @@ public class ProductServiceImpl implements ProductService {
     private int validatePage(int page) { if (page < 0) throw new IllegalArgumentException("Page must be 0 or greater"); return page; }
     private int validateSize(int size) { if (size < 1 || size > 100) throw new IllegalArgumentException("Page size must be between 1 and 100"); return size; }
     private ProductPageResponse getProductPageResponse(Page<Product> page) {
+
         ProductPageResponse response = new ProductPageResponse();
-        response.setContent(page.getContent().stream().map(p -> modelMapper.map(p, ProductResponse.class)).toList());
+
+        response.setContent(
+                page.getContent()
+                        .stream()
+                        .map(this::mapToProductResponse)
+                        .toList()
+        );
+
         response.setPageNumber(page.getNumber());
         response.setPageSize(page.getSize());
         response.setTotalElements(page.getTotalElements());
         response.setTotalPages(page.getTotalPages());
         response.setLast(page.isLast());
+
         return response;
     }
 }

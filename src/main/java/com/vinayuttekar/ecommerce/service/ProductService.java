@@ -9,9 +9,14 @@ import java.io.IOException;
 import java.util.List;
 
 public interface ProductService {
-    ProductResponse addProduct(ProductRequest productRequest, Long categoryId);
+    ProductResponse addProduct(
+            ProductRequest request,
+            Long categoryId,
+            MultipartFile image
+    ) throws IOException;
 
-//    List<ProductResponse> getAllProducts();
+
+    //    List<ProductResponse> getAllProducts();
     ProductPageResponse getAllProducts(
             int page,
             int size,
@@ -31,7 +36,7 @@ public interface ProductService {
 
     ProductResponse updateProduct(ProductRequest productRequest, Long productId);
 
-    ProductResponse deleteProduct(Long productId);
+    ProductResponse deleteProduct(Long productId) throws IOException;
 
     ProductResponse updateProductImage(Long productId, MultipartFile multipartFile) throws IOException;
 }

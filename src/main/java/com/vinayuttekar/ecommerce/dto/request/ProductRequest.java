@@ -18,8 +18,6 @@ public class ProductRequest {
     @Size(max = 500, message = "Description must not exceed 500 characters")
     private String description;
 
-    private String image;
-
     @NotNull(message = "Quantity is required")
     @PositiveOrZero(message = "Quantity cannot be negative")
     private Integer quantity;

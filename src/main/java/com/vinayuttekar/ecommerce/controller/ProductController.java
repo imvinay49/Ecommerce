@@ -7,6 +7,7 @@ import com.vinayuttekar.ecommerce.dto.response.ProductResponse;
 import com.vinayuttekar.ecommerce.service.ProductService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,17 +24,59 @@ public class ProductController {
         this.productService = productService;
     }
 
-    @PostMapping("/admin/categories/{categoryId}/product")
-    public ResponseEntity<ApiResponse<ProductResponse>> addProduct(@Valid @RequestBody ProductRequest productRequest, @PathVariable Long categoryId) {
-        ProductResponse requestedProduct = productService.addProduct(productRequest, categoryId);
 
-        ApiResponse<ProductResponse> response = new ApiResponse<>(
-                true,
-                "Product created successfully.",
-                requestedProduct
-        );
+    @PostMapping(
+            value = "/categories/{categoryId}/product",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ResponseEntity<ApiResponse<ProductResponse>> addProduct(
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            @PathVariable Long categoryId,
+
+            @RequestParam("productName")
+            String productName,
+
+            @RequestParam("description")
+            String description,
+
+            @RequestParam("quantity")
+            Integer quantity,
+
+            @RequestParam("price")
+            Double price,
+
+            @RequestParam(value = "discount", required = false)
+            Double discount,
+
+            @RequestParam("image")
+            MultipartFile image
+
+    ) throws IOException {
+
+        ProductRequest request = new ProductRequest();
+
+        request.setProductName(productName);
+        request.setDescription(description);
+        request.setQuantity(quantity);
+        request.setPrice(price);
+        request.setDiscount(discount);
+
+        ProductResponse response =
+                productService.addProduct(
+                        request,
+                        categoryId,
+                        image
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(
+                        new ApiResponse<>(
+                                true,
+                                "Product created successfully.",
+                                response
+                        )
+                );
     }
 
     @GetMapping("/public/products")

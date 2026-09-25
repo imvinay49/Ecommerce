@@ -37,4 +37,26 @@ public class FileServiceImpl implements FileService {
         Files.copy(file.getInputStream(), target);
         return fileName;
     }
+
+    @Override
+    public void deleteImage(String path, String fileName) throws IOException {
+        if (fileName == null || fileName.isBlank()) {
+            return;
+        }
+
+        Path folder =
+                Paths.get(path)
+                        .toAbsolutePath()
+                        .normalize();
+
+        Path target =
+                folder.resolve(fileName)
+                        .normalize();
+
+        if (!target.getParent().equals(folder)) {
+            throw new IllegalFileException("Invalid file path");
+        }
+
+        Files.deleteIfExists(target);
+    }
 }
